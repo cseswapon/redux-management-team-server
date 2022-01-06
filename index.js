@@ -1,10 +1,8 @@
 const express = require("express");
 require("dotenv").config();
 const { MongoClient } = require("mongodb");
-const ObjectId = require('mongodb').ObjectId;
-const Stripe = require('stripe');
-const stripe = Stripe(process.env.STRIPE_SECRETE);
-
+const ObjectId = require("mongodb").ObjectId;
+const stripe = require("stripe")(process.env.STRIPE_SECRETE);
 
 const app = express();
 const cors = require("cors");
@@ -36,10 +34,10 @@ async function run() {
       res.json(result);
     });
 
-    app.get('/order', async (req, res) => {
+    app.get("/order", async (req, res) => {
       const result = await order_collection.find({}).toArray();
-      res.send(result)
-    })
+      res.send(result);
+    });
 
     app.delete("/order/:id", async (req, res) => {
       const id = req.params.id;
@@ -50,12 +48,12 @@ async function run() {
 
     // exact email order
 
-    app.get('/order', async (req, res) => {
+    app.get("/orders", async (req, res) => {
       const email = req.query.email;
-      const filter = { email }
-      const result = await order_collection.findOne(filter);
-      res.send(result)
-    })
+      const filter = { email: email };
+      const result = await order_collection.find(filter).toArray();
+      res.send(result);
+    });
 
     // add user database
 
@@ -108,7 +106,6 @@ async function run() {
       res.send(result);
     });
 
-
     // Stripe BAckend
     app.post("/create-payment-intent", async (req, res) => {
       const items = req.body;
@@ -118,7 +115,7 @@ async function run() {
         currency: "usd",
         automatic_payment_methods: {
           enabled: true,
-        }
+        },
       });
 
       res.json({ clientSecret: paymentIntent.client_secret });
