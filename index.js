@@ -9,9 +9,20 @@ const cors = require("cors");
 const port = process.env.PORT || 5000;
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.bnebi.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
+
 const client = new MongoClient(uri, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
+});
+
+let admin = require("firebase-admin");
+
+// const token = JSON.parse(process.env.ID_TOKEN);
+// console.log(token);
+let serviceAccount = require("./redux-event-management-firebase.json");
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
 });
 
 //middleware
@@ -21,10 +32,24 @@ app.use(express.json());
 async function run() {
   try {
     await client.connect();
+    console.log("Database Connected", new Date().toTimeString());
     const db = client.db("eventManagement");
     const user_collection = db.collection("user");
     const add_service = db.collection("service");
     const order_collection = db.collection("order");
+
+    // verify id token
+
+    async function verifyToken(req, res, next) {
+      if (req?.headers?.authorization?.startsWith("Barer ")) {
+        const id_token = req?.headers?.authorization.split(" ")[1];
+        try {
+          const decoder = await admin.auth().verifyIdToken(id_token);
+          req.decodedUserEmail = decoder.email;
+        } catch {}
+      }
+      next();
+    }
 
     // order api start
 
@@ -48,11 +73,16 @@ async function run() {
 
     // exact email order
 
-    app.get("/orders", async (req, res) => {
+    app.get("/orders", verifyToken, async (req, res) => {
+      console.log(req.decodedUserEmail);
       const email = req.query.email;
-      const filter = { email: email };
-      const result = await order_collection.find(filter).toArray();
-      res.send(result);
+      if (req.decodedUserEmail === email) {
+        const filter = { email: email };
+        const result = await order_collection.find(filter).toArray();
+        res.send(result);
+      } else {
+        res.status(401).send({ message: "not yet" });
+      }
     });
 
     // add user database
